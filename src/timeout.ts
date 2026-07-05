@@ -8,18 +8,31 @@ export interface WithTimeoutOptions {
 }
 
 /**
- * Reject with a {@link TimeoutError} if the promise does not settle within
+ * Reject with a {@link TimeoutError} if the operation does not settle within
  * `ms` milliseconds.
  *
- * Accepts either a promise or a promise-returning function. Passing a
- * function lets `withTimeout` forward an AbortSignal that fires on timeout,
- * so the underlying work can actually be cancelled:
+ * @param input - Either a promise, or a function that receives an
+ *   `AbortSignal` and returns a promise. Prefer the function form: the signal
+ *   fires on timeout (and on `options.signal` abort), so the underlying work
+ *   is actually cancelled instead of racing on unobserved.
+ * @param ms - Time budget in milliseconds.
+ * @param options - Custom timeout message and an outer abort signal.
+ * @returns The resolved value of the operation when it settles in time.
+ * @throws {@link TimeoutError} when `ms` elapses first.
+ * @throws The abort reason when `options.signal` aborts first.
+ * @throws Whatever the operation itself rejects with, unwrapped.
  *
+ * @remarks
+ * Stability guarantees:
+ * - The guard timer is always cleared once the race settles — no timer leaks,
+ *   nothing keeps the event loop alive.
+ * - The listener added to `options.signal` is always removed after settling,
+ *   so a long-lived signal can be reused across many calls without listener
+ *   accumulation.
+ *
+ * @example
  * ```ts
- * const res = await withTimeout(
- *   (signal) => fetch(url, { signal }),
- *   5000,
- * );
+ * const res = await withTimeout((signal) => fetch(url, { signal }), 5000);
  * ```
  */
 export async function withTimeout<T>(

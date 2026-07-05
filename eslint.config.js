@@ -29,6 +29,10 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-empty-function': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
+      // Tests index into arrays they just built; `!` beats optional chains here.
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      // Type fixtures use `async () => value` to produce Promise-typed values.
+      '@typescript-eslint/require-await': 'off',
     },
   },
   {

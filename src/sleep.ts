@@ -8,6 +8,19 @@ export interface SleepOptions {
 /**
  * Resolve after `ms` milliseconds.
  *
+ * @param ms - Duration in milliseconds. `0` yields to the timer queue once.
+ * @param options - Optional abort signal to cancel the sleep.
+ * @returns A promise that resolves after the duration, or rejects with the
+ *   abort reason (wrapped in an `Error` if it is not one) when cancelled.
+ *
+ * @remarks
+ * Stability guarantees:
+ * - Aborting clears the underlying timer immediately — a cancelled sleep
+ *   does not keep the process alive.
+ * - The abort listener is removed when the sleep resolves normally, so a
+ *   long-lived signal can be passed to many sleeps without accumulation.
+ *
+ * @example
  * ```ts
  * await sleep(1000);
  * await sleep(5000, { signal: controller.signal }); // cancellable

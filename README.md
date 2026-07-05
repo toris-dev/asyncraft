@@ -130,15 +130,48 @@ const results = await asyncMap(
 | `TimeoutError`            | Thrown by `withTimeout`                       |
 | `RetryError`              | Thrown by `retry` when attempts are exhausted |
 
+## Stability guarantees
+
+These behaviors are pinned by a dedicated test suite (unit + stress +
+property-based + type-level; see [TESTING.md](./TESTING.md)) — a change that
+breaks any of them fails CI and cannot be published:
+
+- **No timer or listener leaks.** Every `setTimeout` is cleared and every
+  `AbortSignal` listener removed once an operation settles or is aborted. A
+  long-lived signal can be reused across thousands of calls, and a cancelled
+  delay never keeps the process alive.
+- **Abort reasons are always throwable.** If `signal.reason` is an `Error` it
+  is rethrown as-is; strings and other primitives are wrapped in an `Error`
+  named `AbortError` with a readable message.
+- **Deterministic retry accounting.** `retry` calls your function exactly
+  `retries + 1` times in the worst case. Without jitter, delays follow
+  `min(minDelay · factor^(n-1), maxDelay)` and never decrease; with jitter
+  each delay stays within `[50%, 100%]` of that value.
+- **Order preservation.** `asyncMap` results always match input order, for any
+  input and any concurrency (verified with property-based tests).
+- **Failure isolation.** A rejecting task frees its `createLimit` slot like
+  any other, and `asyncMap`'s `settled` mode reports every item — one failure
+  never stalls the queue or hides another result.
+- **Typed error surface.** Timeouts throw `TimeoutError`, exhausted retries
+  throw `RetryError` (with `.cause` and `.attempts`) — both `instanceof`-able.
+
+All public APIs carry full TSDoc (`@param`, `@throws`, `@remarks`,
+`@example`), so the same documentation appears in your editor's IntelliSense.
+
 ## Development
 
 ```sh
 npm install
-npm test          # vitest
-npm run lint      # eslint (type-checked)
-npm run typecheck # tsc --noEmit
-npm run build     # tsup → dist/ (ESM + CJS + d.ts)
+npm run tdd           # TDD loop: vitest watch mode + live coverage
+npm test              # unit + property + type tests
+npm run test:coverage # same, plus the coverage gate CI enforces
+npm run lint          # eslint (type-checked)
+npm run typecheck     # tsc --noEmit
+npm run build         # tsup → dist/ (ESM + CJS + d.ts)
 ```
+
+See [TESTING.md](./TESTING.md) for the TDD workflow and the test-harness
+layers (unit / stability / property-based / type tests).
 
 ## License
 

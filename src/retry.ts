@@ -28,15 +28,35 @@ export interface RetryOptions {
 }
 
 /**
- * Call `fn` until it resolves, retrying with exponential backoff.
+ * Call `fn` until it resolves, retrying failed attempts with exponential
+ * backoff (and, by default, jitter to avoid thundering-herd retries).
  *
- * The attempt number (starting at 1) is passed to `fn`. When every attempt
- * fails, a {@link RetryError} is thrown with the last error as `cause`.
+ * @param fn - The operation to attempt. Receives the attempt number
+ *   (starting at 1). May return a value or a promise; synchronous throws are
+ *   treated the same as rejections.
+ * @param options - Backoff tuning, retry predicate, and abort signal.
+ * @returns The first successful result of `fn`.
+ * @throws {@link RetryError} when all `retries + 1` attempts fail — the last
+ *   error is available on `.cause` and the attempt count on `.attempts`.
+ * @throws The original error, unwrapped, when `shouldRetry` returns `false`.
+ * @throws The abort reason when `options.signal` aborts (before an attempt or
+ *   during a delay; an attempt already in flight is not interrupted).
  *
+ * @remarks
+ * Stability guarantees:
+ * - `fn` is called exactly `retries + 1` times in the worst case, never more.
+ * - Without jitter, delays follow `min(minDelay * factor^(attempt-1), maxDelay)`
+ *   and are non-decreasing. With jitter each delay is scaled into `[0.5, 1)`
+ *   of that value.
+ * - Aborting during a delay clears the underlying timer immediately — nothing
+ *   keeps the event loop alive afterwards.
+ *
+ * @example
  * ```ts
  * const user = await retry(() => fetchUser(id), {
  *   retries: 5,
  *   shouldRetry: (err) => err instanceof HttpError && err.status >= 500,
+ *   onRetry: (err, attempt, delay) => log.warn({ attempt, delay }, 'retrying'),
  * });
  * ```
  */

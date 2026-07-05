@@ -16,8 +16,24 @@ export type SettledResult<T> =
 
 /**
  * Map over `items` with an async mapper, at most `concurrency` at a time.
- * Results preserve input order regardless of completion order.
  *
+ * @param items - Any iterable; it is materialized once up front.
+ * @param mapper - Receives each item and its index. May return a value or a
+ *   promise; synchronous throws are treated the same as rejections.
+ * @param options - Concurrency bound and failure mode.
+ * @returns Results in input order. With `settled: true`, an array of
+ *   {@link SettledResult} objects (one per item, never rejects); otherwise
+ *   the mapped values, rejecting on the first mapper failure like
+ *   `Promise.all`.
+ * @throws {TypeError} If `options.concurrency` is not a positive integer.
+ *
+ * @remarks
+ * Stability guarantees:
+ * - Result order always matches input order, regardless of completion order.
+ * - In `settled` mode every item is processed and reported — one failure
+ *   never hides another item's outcome.
+ *
+ * @example
  * ```ts
  * const pages = await asyncMap(urls, (url) => fetch(url), { concurrency: 4 });
  * ```
