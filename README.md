@@ -1,5 +1,12 @@
 # asyncraft
 
+[![npm version](https://img.shields.io/npm/v/asyncraft?logo=npm)](https://www.npmjs.com/package/asyncraft)
+[![CI](https://github.com/toris-dev/asyncraft/actions/workflows/ci.yml/badge.svg)](https://github.com/toris-dev/asyncraft/actions/workflows/ci.yml)
+[![npm downloads](https://img.shields.io/npm/dm/asyncraft)](https://www.npmjs.com/package/asyncraft)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/asyncraft)](https://bundlephobia.com/package/asyncraft)
+[![types](https://img.shields.io/npm/types/asyncraft)](https://www.npmjs.com/package/asyncraft)
+[![license](https://img.shields.io/npm/l/asyncraft)](./LICENSE)
+
 > Zero-dependency async utilities: retry with backoff, timeout, concurrency limit, and async pool — fully typed, `AbortSignal`-aware.
 
 Instead of installing `p-retry` + `p-timeout` + `p-limit` + `p-map` separately, get the four things every project eventually needs in one tiny, tree-shakeable package.
