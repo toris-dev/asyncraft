@@ -19,8 +19,12 @@
   "author": "toris <ironjustlikethat@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/toris/asyncraft.git"
+    "url": "git+https://github.com/toris-dev/asyncraft.git"
   },
+  "bugs": {
+    "url": "https://github.com/toris-dev/asyncraft/issues"
+  },
+  "homepage": "https://github.com/toris-dev/asyncraft#readme",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
