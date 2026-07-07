@@ -1,18 +1,24 @@
 {
   "name": "asyncraft",
-  "version": "0.1.1",
-  "description": "Zero-dependency async utilities: retry with backoff, timeout, concurrency limit, and async pool — fully typed, AbortSignal-aware.",
+  "version": "0.2.0",
+  "description": "Zero-dependency async control-flow utilities: retry, timeout, circuit breaker, concurrency limit, async map, single-flight memoize, debounce, deferred, and AbortSignal helpers — fully typed, AbortSignal-aware.",
   "keywords": [
     "async",
     "retry",
     "backoff",
     "timeout",
     "concurrency",
+    "circuit-breaker",
+    "memoize",
+    "single-flight",
+    "debounce",
+    "deferred",
+    "abortsignal",
     "p-limit",
     "p-retry",
     "p-timeout",
     "promise",
-    "abort",
+    "resilience",
     "typescript"
   ],
   "license": "MIT",
@@ -42,7 +48,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "llms.txt"
   ],
   "sideEffects": false,
   "engines": {
@@ -60,7 +67,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "tdd": "vitest --coverage",
-    "prepublishOnly": "npm run typecheck && npm run lint && npm run test && npm run build"
+    "prepublishOnly": "npm run typecheck && npm run lint && npm run test:coverage && npm run build"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",

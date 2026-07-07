@@ -42,6 +42,29 @@ export class RetryError extends Error {
   }
 }
 
+/**
+ * Thrown by a {@link CircuitBreaker} while the circuit is open — the wrapped
+ * function is *not* called, the breaker rejects fast to let the failing
+ * dependency recover.
+ *
+ * @remarks
+ * Distinguish a tripped breaker from a real failure with `instanceof`:
+ * ```ts
+ * try {
+ *   await breaker(payload);
+ * } catch (err) {
+ *   if (err instanceof CircuitOpenError) return cachedFallback();
+ *   throw err;
+ * }
+ * ```
+ */
+export class CircuitOpenError extends Error {
+  constructor(message = 'Circuit breaker is open') {
+    super(message);
+    this.name = 'CircuitOpenError';
+  }
+}
+
 /** Wrap a non-Error abort reason so it is always safe to throw. */
 export function abortError(signal: AbortSignal): Error {
   const reason: unknown = signal.reason;

@@ -1,5 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
-import { asyncMap, createLimit, retry, sleep, withTimeout, RetryError } from '../src/index.js';
+import {
+  anySignal,
+  asyncMap,
+  circuitBreaker,
+  createLimit,
+  debounceAsync,
+  memoize,
+  retry,
+  sleep,
+  withTimeout,
+  CircuitOpenError,
+  RetryError,
+} from '../src/index.js';
 
 /**
  * Stability suite: resource cleanup, abort semantics, and stress behavior.
@@ -176,5 +188,63 @@ describe('edge cases', () => {
     );
     expect(result).toBe('recovered');
     expect(calls).toBe(2);
+  });
+});
+
+describe('composition & resilience primitives', () => {
+  it('memoize single-flights a burst of 100 concurrent calls into one invocation', async () => {
+    const fn = vi.fn(async (n: number) => {
+      await sleep(15);
+      return n * 2;
+    });
+    const memo = memoize(fn);
+
+    const results = await Promise.all(Array.from({ length: 100 }, () => memo(21)));
+    expect(results.every((r) => r === 42)).toBe(true);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('circuitBreaker in front of retry stops retries once the dependency is down', async () => {
+    const fn = vi.fn().mockRejectedValue(new Error('dependency down'));
+    const breaker = circuitBreaker(fn, { failureThreshold: 3 });
+
+    // retry drives the breaker; after 3 failures the breaker opens and
+    // subsequent attempts reject fast without calling fn again.
+    await retry(() => breaker(), {
+      retries: 10,
+      minDelay: 1,
+      jitter: false,
+      shouldRetry: (err) => !(err instanceof CircuitOpenError),
+    }).catch(() => undefined);
+
+    expect(breaker.state).toBe('open');
+    expect(fn).toHaveBeenCalledTimes(3); // not 11 — the breaker saved 8 calls
+  });
+
+  it('debounceAsync clears its timer on cancel (no dangling invocation)', async () => {
+    const fn = vi.fn((n: number) => Promise.resolve(n));
+    const debounced = debounceAsync(fn, { wait: 30 });
+
+    const p = debounced(1);
+    debounced.cancel();
+    await expect(p).rejects.toThrow();
+
+    await sleep(50); // well past the debounce window
+    expect(fn).not.toHaveBeenCalled();
+    expect(debounced.pending).toBe(false);
+  });
+
+  it('anySignal forwards an abort from a timeoutSignal-style source and cleans up', async () => {
+    const outer = new AbortController();
+    const inner = new AbortController();
+    const removeSpy = vi.spyOn(inner.signal, 'removeEventListener');
+
+    const combined = anySignal(outer.signal, inner.signal);
+    expect(combined.aborted).toBe(false);
+
+    inner.abort(new Error('inner won'));
+    expect(combined.aborted).toBe(true);
+    expect((combined.reason as Error).message).toBe('inner won');
+    expect(removeSpy).toHaveBeenCalled();
   });
 });

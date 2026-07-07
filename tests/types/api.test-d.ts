@@ -1,12 +1,18 @@
 import { describe, expectTypeOf, it } from 'vitest';
 import {
   asyncMap,
+  circuitBreaker,
   createLimit,
+  debounceAsync,
+  deferred,
+  memoize,
   retry,
   sleep,
   withTimeout,
   RetryError,
   TimeoutError,
+  type CircuitState,
+  type Deferred,
   type LimitFunction,
   type SettledResult,
 } from '../../src/index.js';
@@ -114,5 +120,59 @@ describe('sleep types', () => {
     expectTypeOf(sleep(10, { signal: new AbortController().signal })).toEqualTypeOf<
       Promise<void>
     >();
+  });
+});
+
+describe('circuitBreaker types', () => {
+  it('preserves the wrapped function signature', () => {
+    const call = circuitBreaker((id: string, count: number) => Promise.resolve(id.length + count));
+    expectTypeOf(call).parameters.toEqualTypeOf<[string, number]>();
+    expectTypeOf(call('a', 1)).toEqualTypeOf<Promise<number>>();
+    expectTypeOf(call.state).toEqualTypeOf<CircuitState>();
+    expectTypeOf(call.failures).toEqualTypeOf<number>();
+    expectTypeOf(call.reset).toEqualTypeOf<() => void>();
+
+    // @ts-expect-error argument types are enforced
+    void call(1, 'a');
+    // @ts-expect-error state is readonly
+    call.state = 'open';
+  });
+});
+
+describe('memoize types', () => {
+  it('preserves signature and exposes cache controls', () => {
+    const getUser = memoize((id: string) => Promise.resolve({ id }));
+    expectTypeOf(getUser('1')).toEqualTypeOf<Promise<{ id: string }>>();
+    expectTypeOf(getUser.clear).toEqualTypeOf<() => void>();
+    expectTypeOf(getUser.delete('1')).toEqualTypeOf<boolean>();
+  });
+
+  it('types the key function against the wrapped arguments', () => {
+    memoize((a: number, b: number) => Promise.resolve(a + b), {
+      key: (a, b) => {
+        expectTypeOf(a).toEqualTypeOf<number>();
+        expectTypeOf(b).toEqualTypeOf<number>();
+        return `${a},${b}`;
+      },
+    });
+  });
+});
+
+describe('debounceAsync types', () => {
+  it('returns a promise of the wrapped result and exposes controls', () => {
+    const save = debounceAsync((doc: { id: number }) => Promise.resolve(doc.id), { wait: 100 });
+    expectTypeOf(save({ id: 1 })).toEqualTypeOf<Promise<number>>();
+    expectTypeOf(save.cancel).toEqualTypeOf<(reason?: unknown) => void>();
+    expectTypeOf(save.pending).toEqualTypeOf<boolean>();
+  });
+});
+
+describe('deferred types', () => {
+  it('defaults to void and infers the value type', () => {
+    expectTypeOf(deferred()).toEqualTypeOf<Deferred<void>>();
+    const d = deferred<number>();
+    expectTypeOf(d.promise).toEqualTypeOf<Promise<number>>();
+    d.resolve(1);
+    d.reject(new Error('x'));
   });
 });

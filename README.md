@@ -7,14 +7,31 @@
 [![types](https://img.shields.io/npm/types/asyncraft)](https://www.npmjs.com/package/asyncraft)
 [![license](https://img.shields.io/npm/l/asyncraft)](./LICENSE)
 
-> Zero-dependency async utilities: retry with backoff, timeout, concurrency limit, and async pool — fully typed, `AbortSignal`-aware.
+> Zero-dependency async control-flow utilities: retry, timeout, circuit breaker, concurrency limit, async map, single-flight memoize, debounce, deferred, and AbortSignal helpers — fully typed, `AbortSignal`-aware.
 
-Instead of installing `p-retry` + `p-timeout` + `p-limit` + `p-map` separately, get the four things every project eventually needs in one tiny, tree-shakeable package.
+Instead of installing `p-retry` + `p-timeout` + `p-limit` + `p-map` + `p-memoize` + a circuit-breaker lib separately, get the resilience and concurrency primitives every project eventually needs in one tiny, tree-shakeable package.
 
 - **Zero dependencies** — nothing else lands in your `node_modules`.
 - **TypeScript-first** — strict types, no `any`, full inference.
 - **`AbortSignal` everywhere** — every wait is cancellable.
+- **Composable** — stack `circuitBreaker` → `retry` → `withTimeout` inside `asyncMap`.
+- **AI-friendly** — full TSDoc in IntelliSense + a machine-readable [`llms.txt`](./llms.txt) so coding agents pick the right primitive.
 - **ESM + CJS** — works in modern and legacy setups, Node ≥ 18.
+
+## Which primitive do I need?
+
+| Problem                                                  | Use              |
+| -------------------------------------------------------- | ---------------- |
+| Fails intermittently — retry with backoff                | `retry`          |
+| Might hang — enforce a time budget                       | `withTimeout`    |
+| Dependency is down — fail fast, stop hammering it        | `circuitBreaker` |
+| Too much parallelism — cap it                            | `createLimit`    |
+| Run over a list with bounded parallelism, keep order     | `asyncMap`       |
+| Same call fired repeatedly/concurrently — dedupe + cache | `memoize`        |
+| Collapse rapid triggers into one trailing call           | `debounceAsync`  |
+| A promise you resolve from elsewhere                     | `deferred`       |
+| Merge several cancellation sources                       | `anySignal`      |
+| Just wait, cancellably                                   | `sleep`          |
 
 ## Install
 
@@ -90,6 +107,75 @@ for (const r of results) {
 }
 ```
 
+### `circuitBreaker(fn, options?)`
+
+Fail fast while a dependency is down. After `failureThreshold` consecutive failures the circuit **opens** and calls reject immediately with `CircuitOpenError` (without calling `fn`); after `resetTimeout` a single trial call is allowed, and success closes it again.
+
+```ts
+import { circuitBreaker, CircuitOpenError } from 'asyncraft';
+
+const call = circuitBreaker((id: string) => api.fetchUser(id), {
+  failureThreshold: 3,
+  resetTimeout: 10_000,
+  shouldTrip: (err) => !(err instanceof HttpError && err.status < 500), // ignore 4xx
+});
+
+try {
+  const user = await call('123');
+} catch (err) {
+  if (err instanceof CircuitOpenError) return cachedUser; // fast fallback
+  throw err;
+}
+
+call.state; // 'closed' | 'open' | 'half-open'
+call.reset(); // force back to closed
+```
+
+### `memoize(fn, options?)`
+
+De-duplicate and cache async calls. Concurrent identical calls share **one** in-flight promise (single-flight); resolved values are cached until `ttl`. Turns a thundering herd of identical requests into one call.
+
+```ts
+import { memoize } from 'asyncraft';
+
+const getUser = memoize((id: string) => api.fetchUser(id), { ttl: 60_000 });
+
+// 10 concurrent getUser('42') → one fetch, one shared result
+const [a, b] = await Promise.all([getUser('42'), getUser('42')]);
+
+getUser.delete('42'); // evict one key
+getUser.clear(); // evict everything
+```
+
+Options: `ttl` (default `Infinity`), `key` (default `JSON.stringify(args)`), `cacheRejections` (default `false`), `maxSize` (LRU cap, default `Infinity`).
+
+### `debounceAsync(fn, { wait })`
+
+Trailing-edge debounce: rapid calls collapse into a single invocation `wait` ms after the last call, using the latest args. Every caller in the window receives that invocation's result.
+
+```ts
+import { debounceAsync } from 'asyncraft';
+
+const save = debounceAsync((doc: Doc) => api.save(doc), { wait: 500 });
+editor.on('change', (doc) => save(doc)); // one save 500ms after typing stops
+
+save.cancel(); // reject anything pending
+save.pending; // is a call scheduled?
+```
+
+### `deferred()`
+
+A promise you resolve or reject from the outside — no hand-rolled executor.
+
+```ts
+import { deferred } from 'asyncraft';
+
+const ready = deferred<void>();
+server.once('listening', () => ready.resolve());
+server.once('error', (err) => ready.reject(err));
+await ready.promise;
+```
+
 ### `sleep(ms, options?)`
 
 A cancellable delay.
@@ -99,6 +185,18 @@ import { sleep } from 'asyncraft';
 
 await sleep(1000);
 await sleep(60_000, { signal: controller.signal }); // rejects on abort
+```
+
+### `anySignal(...signals)` & `timeoutSignal(ms)`
+
+Compose cancellation. `timeoutSignal` makes a signal that self-aborts after `ms`; `anySignal` merges several signals into one that aborts when the first does (a drop-in for `AbortSignal.any` on Node < 20).
+
+```ts
+import { anySignal, timeoutSignal } from 'asyncraft';
+
+// abort when the caller cancels OR a 5s deadline passes
+const signal = anySignal(req.signal, timeoutSignal(5000));
+await fetch(url, { signal });
 ```
 
 ### Composing
@@ -120,15 +218,30 @@ const results = await asyncMap(
 
 ## API summary
 
-| Export                    | Purpose                                       |
-| ------------------------- | --------------------------------------------- |
-| `retry(fn, opts?)`        | Exponential-backoff retry with jitter         |
-| `withTimeout(p, ms, o?)`  | Time-bound a promise, cancel underlying work  |
-| `createLimit(n)`          | Concurrency limiter (`p-limit` style)         |
-| `asyncMap(items, fn, o?)` | Ordered async map with bounded concurrency    |
-| `sleep(ms, opts?)`        | Cancellable delay                             |
-| `TimeoutError`            | Thrown by `withTimeout`                       |
-| `RetryError`              | Thrown by `retry` when attempts are exhausted |
+| Export                      | Purpose                                          |
+| --------------------------- | ------------------------------------------------ |
+| `retry(fn, opts?)`          | Exponential-backoff retry with jitter            |
+| `withTimeout(p, ms, o?)`    | Time-bound a promise, cancel underlying work     |
+| `circuitBreaker(fn, opts?)` | Fail fast while a dependency is down             |
+| `createLimit(n)`            | Concurrency limiter (`p-limit` style)            |
+| `asyncMap(items, fn, o?)`   | Ordered async map with bounded concurrency       |
+| `memoize(fn, opts?)`        | Single-flight de-dup + TTL cache for async calls |
+| `debounceAsync(fn, {wait})` | Trailing-edge async debounce                     |
+| `deferred()`                | Externally-resolvable promise                    |
+| `sleep(ms, opts?)`          | Cancellable delay                                |
+| `anySignal(...signals)`     | Merge `AbortSignal`s into one                    |
+| `timeoutSignal(ms)`         | An `AbortSignal` that self-aborts after `ms`     |
+| `TimeoutError`              | Thrown by `withTimeout`                          |
+| `RetryError`                | Thrown by `retry` when attempts are exhausted    |
+| `CircuitOpenError`          | Thrown by an open `circuitBreaker`               |
+
+## For AI coding agents
+
+asyncraft is built to be consumed correctly by LLM-based tools:
+
+- A machine-readable [`llms.txt`](./llms.txt) ships in the published package — a concise map of every export with signatures, a "which primitive for which problem" guide, conventions, and copy-paste recipes, so an agent can pick the right primitive without reading source.
+- Every public symbol carries full TSDoc (`@param` / `@throws` / `@remarks` / `@example`), so the same guidance appears in editor IntelliSense and in any tool that reads `.d.ts`.
+- Strong, inference-friendly types (verified by type-level tests) mean generated call sites either type-check or fail loudly.
 
 ## Stability guarantees
 

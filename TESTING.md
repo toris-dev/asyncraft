@@ -22,12 +22,12 @@ One-shot equivalents: `npm test` (unit + property + type tests) and
 
 ## The four layers
 
-| Layer           | Where                          | What it pins down                                                                                                                                                                                           |
-| --------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Unit tests      | `tests/*.test.ts` (per module) | Observable behavior of each API: return values, error types, abort semantics, backoff arithmetic.                                                                                                           |
-| Stability tests | `tests/stability.test.ts`      | Runtime guarantees: listener/timer cleanup, abort-reason wrapping, queue integrity under failures, 500–1000-task stress runs, edge cases (`sleep(0)`, empty iterables, sync throws).                        |
-| Property tests  | `tests/property.test.ts`       | Invariants over generated inputs (fast-check): order preservation for any array/concurrency, exact attempt counts, backoff monotonicity, jitter bounds, concurrency never exceeding its limit.              |
-| Type tests      | `tests/types/*.test-d.ts`      | The public type surface: generic inference, overload resolution (`settled: true` → `SettledResult[]`), readonly fields, rejected invalid options. Compiled, not executed — a loosened type fails the build. |
+| Layer           | Where                          | What it pins down                                                                                                                                                                                                                                           |
+| --------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit tests      | `tests/*.test.ts` (per module) | Observable behavior of each API: return values, error types, abort semantics, backoff arithmetic.                                                                                                                                                           |
+| Stability tests | `tests/stability.test.ts`      | Runtime guarantees: listener/timer cleanup, abort-reason wrapping, queue integrity under failures, 500–1000-task stress runs, single-flight de-dup under load, `circuitBreaker`+`retry` composition, edge cases (`sleep(0)`, empty iterables, sync throws). |
+| Property tests  | `tests/property.test.ts`       | Invariants over generated inputs (fast-check): order preservation for any array/concurrency, exact attempt counts, backoff monotonicity, jitter bounds, concurrency never exceeding its limit.                                                              |
+| Type tests      | `tests/types/*.test-d.ts`      | The public type surface: generic inference, overload resolution (`settled: true` → `SettledResult[]`), readonly fields, rejected invalid options. Compiled, not executed — a loosened type fails the build.                                                 |
 
 ### Choosing a layer when adding a feature
 

@@ -1,0 +1,123 @@
+# asyncraft
+
+> Zero-dependency, fully-typed async control-flow utilities for TypeScript/JavaScript (Node ≥ 18, ESM + CJS). Resilience and concurrency primitives — retry, timeout, circuit breaker, concurrency limit, async map, memoize (single-flight), debounce, deferred, and AbortSignal helpers — that compose with each other and cancel cleanly via `AbortSignal`.
+
+This file is a machine-readable map of the public API for AI coding agents. Every symbol below is a named export from `asyncraft`. Import as `import { name } from 'asyncraft'`. All functions are tree-shakeable; import only what you use.
+
+## When to use which primitive (decision guide)
+
+- Operation fails intermittently, want automatic retries with backoff → `retry`
+- Operation might hang, need a hard time budget → `withTimeout` (or `timeoutSignal` for a plain signal)
+- A dependency is down, stop hammering it and fail fast → `circuitBreaker`
+- Too many things running at once, cap parallelism → `createLimit`
+- Run an async function over a list with bounded parallelism, keep order → `asyncMap`
+- Same expensive async call fired repeatedly / concurrently, dedupe + cache → `memoize`
+- Collapse rapid repeated triggers into one trailing call → `debounceAsync`
+- Need a promise you resolve/reject from elsewhere → `deferred`
+- Combine multiple cancellation sources into one → `anySignal`
+- Just need to wait, cancellably → `sleep`
+
+Compose freely: `circuitBreaker` in front of `retry` in front of `withTimeout`, all inside `asyncMap` with a `concurrency` cap, is the canonical resilient batch-fetch.
+
+## Conventions (apply to all APIs)
+
+- Cancellation: any option named `signal` takes an `AbortSignal`; aborting rejects with the signal's reason (non-Error reasons are wrapped in an `Error` named `AbortError`).
+- Errors are typed and `instanceof`-checkable: `TimeoutError`, `RetryError` (`.cause`, `.attempts`), `CircuitOpenError`.
+- "sync or async fn" means the callback may return `T` or `Promise<T>`; synchronous throws are treated as rejections.
+- No global state, no timers left dangling: every primitive clears its own timers/listeners on settle or abort.
+
+## API
+
+### retry(fn, options?) => Promise<T>
+Retry `fn(attempt)` with exponential backoff + jitter until it resolves.
+- `fn: (attempt: number) => T | Promise<T>` — attempt starts at 1.
+- options: `retries=3`, `minDelay=100`, `maxDelay=10_000`, `factor=2`, `jitter=true`, `signal?`, `shouldRetry?: (error, attempt) => boolean`, `onRetry?: (error, attempt, delay) => void`.
+- Throws `RetryError` (`.cause` = last error, `.attempts`) when exhausted; throws the raw error immediately if `shouldRetry` returns false.
+- Example: `await retry(() => fetchUser(id), { retries: 5, shouldRetry: (e) => e.status >= 500 })`
+
+### withTimeout(input, ms, options?) => Promise<T>
+Reject with `TimeoutError` if `input` doesn't settle within `ms`.
+- `input: Promise<T> | ((signal: AbortSignal) => Promise<T>)` — pass a function to receive a signal that fires on timeout, so the underlying work is actually cancelled (preferred).
+- options: `message?`, `signal?` (outer abort).
+- Example: `await withTimeout((signal) => fetch(url, { signal }), 5000)`
+
+### circuitBreaker(fn, options?) => CircuitBreaker
+Wrap `fn` so it fails fast while a dependency is down.
+- `fn: (...args) => Promise<R>`; returned breaker has the same call signature.
+- options: `failureThreshold=5`, `resetTimeout=30_000`, `successThreshold=1`, `shouldTrip?: (error) => boolean`, `onStateChange?: (state, previous) => void`.
+- States: `'closed' | 'open' | 'half-open'`. Open calls throw `CircuitOpenError` without invoking `fn`; after `resetTimeout` one trial is allowed.
+- Properties: `.state`, `.failures`, `.reset()`.
+- Example: `const call = circuitBreaker((id) => api.get(id), { failureThreshold: 3 }); await call('x')`
+
+### createLimit(concurrency) => LimitFunction
+Run at most `concurrency` promises at once (p-limit style).
+- Returns `limit(fn) => Promise<T>`; properties `.activeCount`, `.pendingCount`, `.clearQueue()`.
+- Throws `TypeError` if concurrency is not a positive integer.
+- Example: `const limit = createLimit(4); await Promise.all(urls.map((u) => limit(() => fetch(u))))`
+
+### asyncMap(items, mapper, options?) => Promise<R[] | SettledResult<R>[]>
+Map an iterable with bounded concurrency, results in input order.
+- `mapper: (item, index) => R | Promise<R>`.
+- options: `concurrency?` (default: unbounded), `settled?` (default false = fail fast like Promise.all; true = never rejects, returns `SettledResult<R>[]` like Promise.allSettled).
+- `SettledResult<R>` = `{ status: 'fulfilled', value: R } | { status: 'rejected', reason: unknown }`.
+- Example: `await asyncMap(urls, (u) => fetch(u), { concurrency: 8, settled: true })`
+
+### memoize(fn, options?) => Memoized
+De-duplicate + cache async calls. Concurrent identical calls share one in-flight promise (single-flight); resolved values are cached until `ttl`.
+- options: `ttl=Infinity`, `key?: (...args) => string` (default `JSON.stringify(args)`), `cacheRejections=false`, `maxSize=Infinity` (LRU).
+- Properties: `.clear()`, `.delete(...args) => boolean`.
+- Works even with `ttl: 0` (single-flight only, no result caching).
+- Example: `const getUser = memoize((id) => api.getUser(id), { ttl: 60_000 })`
+
+### debounceAsync(fn, options) => DebouncedFunction
+Trailing-edge debounce; rapid calls collapse into one invocation with the last args, `wait` ms after the last call. Every caller in the window gets that invocation's result.
+- options: `{ wait: number }`.
+- Properties: `.cancel(reason?)` (rejects pending callers), `.pending`.
+- Example: `const save = debounceAsync((doc) => api.save(doc), { wait: 500 })`
+
+### deferred<T=void>() => Deferred<T>
+A promise with external `resolve`/`reject`.
+- Returns `{ promise, resolve, reject }`. For a void deferred, call `resolve()` with no args.
+- Example: `const d = deferred<number>(); onEvent((v) => d.resolve(v)); await d.promise`
+
+### sleep(ms, options?) => Promise<void>
+Cancellable delay. options: `signal?`. Aborting rejects with the abort reason.
+
+### timeoutSignal(ms) => AbortSignal
+An `AbortSignal` that self-aborts after `ms` with a `TimeoutError` reason. The timer is unref'd (won't keep the process alive). Like `AbortSignal.timeout` but with asyncraft's error type.
+
+### anySignal(...signals) => AbortSignal
+Combine `AbortSignal`s (nullish entries ignored) into one that aborts when the first source aborts, with that reason. Drop-in for `AbortSignal.any` on Node < 20. Cleans up its listeners on abort.
+
+### Errors (named exports)
+- `TimeoutError` — thrown by `withTimeout`; reason of `timeoutSignal`.
+- `RetryError` — thrown by `retry`; fields `.cause: unknown`, `.attempts: number`.
+- `CircuitOpenError` — thrown by an open `circuitBreaker`.
+
+## Recipe: resilient concurrent fetch
+
+```ts
+import { asyncMap, retry, withTimeout, circuitBreaker } from 'asyncraft';
+
+const fetchOne = circuitBreaker((url: string) => fetch(url).then((r) => r.json()), {
+  failureThreshold: 5,
+});
+
+const results = await asyncMap(
+  urls,
+  (url) =>
+    retry(() => withTimeout((signal) => fetch(url, { signal }).then((r) => r.json()), 5000), {
+      retries: 3,
+      shouldRetry: (e) => !(e instanceof CircuitOpenError),
+    }),
+  { concurrency: 8, settled: true },
+);
+```
+
+## Notes for code generation
+
+- Prefer the function form of `withTimeout` (`(signal) => ...`) so timeouts actually cancel work.
+- In `retry(..., { shouldRetry })`, exclude non-retryable errors (4xx, `CircuitOpenError`) to avoid wasted attempts.
+- Use `memoize` with a `key` when arguments are objects or only some args should affect caching.
+- `asyncMap(..., { settled: true })` when you want every result even if some fail; otherwise it fails fast.
+- Full TSDoc ships in the `.d.ts`, so hover/IntelliSense has `@param`/`@throws`/`@example` for each symbol.
