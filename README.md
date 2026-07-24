@@ -1,14 +1,14 @@
 # asyncraft
 
 [![npm version](https://img.shields.io/npm/v/asyncraft?logo=npm)](https://www.npmjs.com/package/asyncraft)
-[![CI](https://github.com/toris-dev/asyncraft/actions/workflows/ci.yml/badge.svg)](https://github.com/toris-dev/asyncraft/actions/workflows/ci.yml)
+[![CI](https://github.com/torisKR/asyncraft/actions/workflows/ci.yml/badge.svg)](https://github.com/torisKR/asyncraft/actions/workflows/ci.yml)
 [![npm downloads](https://img.shields.io/npm/dm/asyncraft)](https://www.npmjs.com/package/asyncraft)
 [![Node.js](https://img.shields.io/node/v/asyncraft)](https://nodejs.org)
 [![bundle size](https://img.shields.io/bundlephobia/minzip/asyncraft)](https://bundlephobia.com/package/asyncraft)
 [![types](https://img.shields.io/npm/types/asyncraft)](https://www.npmjs.com/package/asyncraft)
 [![license](https://img.shields.io/npm/l/asyncraft)](./LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/toris-dev/asyncraft?style=social)](https://github.com/toris-dev/asyncraft/stargazers)
-[![issues](https://img.shields.io/github/issues/toris-dev/asyncraft)](https://github.com/toris-dev/asyncraft/issues)
+[![GitHub stars](https://img.shields.io/github/stars/torisKR/asyncraft?style=social)](https://github.com/torisKR/asyncraft/stargazers)
+[![issues](https://img.shields.io/github/issues/torisKR/asyncraft)](https://github.com/torisKR/asyncraft/issues)
 
 > Zero-dependency async control-flow utilities: retry, timeout, circuit breaker, concurrency limit, async map, single-flight memoize, debounce, deferred, and AbortSignal helpers — fully typed, `AbortSignal`-aware.
 
@@ -360,11 +360,11 @@ PRs with behavior changes should also include focused tests.
 ## Discussions and support channels
 
 - Ask questions and architectural questions in GitHub Discussions:
-  - `https://github.com/toris-dev/asyncraft/discussions`
+  - `https://github.com/torisKR/asyncraft/discussions`
 - Open bug reports with the bug issue template:
-  - `https://github.com/toris-dev/asyncraft/issues/new?template=bug_report.md`
+  - `https://github.com/torisKR/asyncraft/issues/new?template=bug_report.md`
 - Open feature proposals in the issue template:
-  - `https://github.com/toris-dev/asyncraft/issues/new?template=feature_request.md`
+  - `https://github.com/torisKR/asyncraft/issues/new?template=feature_request.md`
 
 ## Community and governance
 

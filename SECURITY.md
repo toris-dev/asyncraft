@@ -4,7 +4,7 @@ If you discover a security issue in asyncraft, please report it privately.
 
 ## Reporting
 
-- Open a [GitHub Security Advisory](https://github.com/toris-dev/asyncraft/security/advisories/new) if you have a GitHub account.
+- Open a [GitHub Security Advisory](https://github.com/torisKR/asyncraft/security/advisories/new) if you have a GitHub account.
 - If you cannot use advisories, email `ironjustlikethat@gmail.com`.
 
 Please include:

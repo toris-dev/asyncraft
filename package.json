@@ -1,6 +1,6 @@
 {
   "name": "asyncraft",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Zero-dependency async control-flow utilities: retry, timeout, circuit breaker, concurrency limit, async map, single-flight memoize, debounce, deferred, and AbortSignal helpers — fully typed, AbortSignal-aware.",
   "keywords": [
     "async",
@@ -34,15 +34,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/toris-dev/asyncraft.git"
+    "url": "git+https://github.com/torisKR/asyncraft.git"
   },
   "bugs": {
-    "url": "https://github.com/toris-dev/asyncraft/issues"
+    "url": "https://github.com/torisKR/asyncraft/issues"
   },
-  "homepage": "https://github.com/toris-dev/asyncraft",
+  "homepage": "https://github.com/torisKR/asyncraft#readme",
   "funding": {
     "type": "github",
-    "url": "https://github.com/toris-dev/asyncraft"
+    "url": "https://github.com/torisKR/asyncraft"
   },
   "type": "module",
   "main": "./dist/index.cjs",
