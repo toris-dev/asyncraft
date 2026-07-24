@@ -1,10 +1,16 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { execSync } from "node:child_process";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const canonical = "https://github.com/torisKR/asyncraft";
 const checks = [];
 const log = [];
+const npmConfigPath = join(
+  mkdtempSync(join(tmpdir(), "asyncraft-npm-config-XXXXXX")),
+  ".npmrc"
+);
 
 function expect(condition, message) {
   if (condition) {
@@ -12,6 +18,34 @@ function expect(condition, message) {
     return;
   }
   checks.push(`[fail] ${message}`);
+}
+
+function runNpm(cmd, extraEnv = {}) {
+  return execSync(`npm ${cmd}`, {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      NPM_CONFIG_USERCONFIG: npmConfigPath,
+      ...extraEnv,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+}
+
+function withTempNpmConfig(token, fn) {
+  try {
+    writeFileSync(
+      npmConfigPath,
+      `//registry.npmjs.org/:_authToken=${token}\nstrict-ssl=true\n`
+    );
+    return fn();
+  } finally {
+    try {
+      rmSync(npmConfigPath, { force: true });
+    } catch (error) {
+      // best effort cleanup
+    }
+  }
 }
 
 expect(
@@ -31,51 +65,52 @@ const token = process.env.NPM_TOKEN;
 expect(!!token, "NPM_TOKEN is set");
 
 if (token) {
-  try {
-    const userResponse = await fetch("https://registry.npmjs.org/-/npm/v1/user", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (!userResponse.ok) {
-      if (userResponse.status === 403) {
-        checks.push(
-          "[fail] NPM token verification failed (403). Use an Automation/Public/Publish token (not read-only) and retry."
-        );
-      } else {
-        checks.push(
-          `[fail] NPM token verification failed (HTTP ${userResponse.status} ${userResponse.statusText})`
-        );
-      }
-    } else {
-      const user = await userResponse.json();
-      log.push(`[ok] npm token resolves to ${user.name}`);
+  withTempNpmConfig(token, () => {
+    try {
+      const username = runNpm("whoami");
+      log.push(`[ok] npm token resolves to ${username}`);
+
       if (pkg.name) {
         try {
-          const latest = execSync(`npm view ${pkg.name} dist-tags.latest --json`, {
-            encoding: "utf8",
-          }).trim();
+          const latest = runNpm(`view ${pkg.name} dist-tags.latest --json`);
           log.push(`[ok] npm latest tag is ${latest}`);
         } catch (e) {
           checks.push(`[fail] cannot read npm dist-tags for ${pkg.name}`);
         }
-      }
-      try {
-        const version = execSync(`npm view ${pkg.name}@${pkg.version} version --json`, {
-          encoding: "utf8",
-        }).trim();
-        if (version.includes(pkg.version)) {
-          checks.push(
-            `[fail] version ${pkg.version} already exists on npm registry (${pkg.name})`
+
+        try {
+          const collaborators = runNpm(
+            `access ls-collaborators ${pkg.name} --json`
+          );
+          const parsed = JSON.parse(collaborators);
+          const hasTokenUser = Object.keys(parsed).some(
+            (name) => name === username
+          );
+          expect(
+            hasTokenUser,
+            `token user has collaborator access to ${pkg.name}`
+          );
+        } catch (e) {
+          log.push(
+            `[warn] collaborator check unavailable for ${pkg.name} (skipping publish entitlement check)`
           );
         }
-      } catch (e) {
-        log.push(`[ok] version ${pkg.version} does not yet exist on npm`);
+
+        try {
+          const version = runNpm(`view ${pkg.name}@${pkg.version} version --json`);
+          if (version.includes(pkg.version)) {
+            checks.push(
+              `[fail] version ${pkg.version} already exists on npm registry (${pkg.name})`
+            );
+          }
+        } catch (e) {
+          log.push(`[ok] version ${pkg.version} does not yet exist on npm`);
+        }
       }
+    } catch (error) {
+      checks.push(`[fail] npm token verification command failed: ${error.message}`);
     }
-  } catch (error) {
-    checks.push(`[fail] NPM token verification command failed: ${error.message}`);
-  }
+  });
 }
 
 for (const row of log) {

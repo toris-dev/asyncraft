@@ -1,6 +1,6 @@
 {
   "name": "asyncraft",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Zero-dependency async control-flow utilities: retry, timeout, circuit breaker, concurrency limit, async map, single-flight memoize, debounce, deferred, and AbortSignal helpers — fully typed, AbortSignal-aware.",
   "keywords": [
     "async",
@@ -96,7 +96,7 @@
     "tdd": "vitest --coverage",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run test:coverage && npm run build",
     "publish:check": "node ./scripts/publish-check.mjs",
-    "publish:release": "npm run publish:check && npm publish --access public"
+    "publish:release": "npm run publish:check && node ./scripts/publish-release.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
