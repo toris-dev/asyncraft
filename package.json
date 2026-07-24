@@ -7,6 +7,10 @@
     "retry",
     "backoff",
     "timeout",
+    "async-await",
+    "async-utils",
+    "promise-pool",
+    "promise-concurrency",
     "concurrency",
     "circuit-breaker",
     "memoize",
@@ -17,12 +21,17 @@
     "p-limit",
     "p-retry",
     "p-timeout",
+    "p-map",
     "promise",
     "resilience",
     "typescript"
   ],
   "license": "MIT",
-  "author": "toris <ironjustlikethat@gmail.com>",
+  "author": {
+    "name": "toris",
+    "email": "ironjustlikethat@gmail.com",
+    "url": "https://github.com/toris-dev"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/toris-dev/asyncraft.git"
@@ -30,7 +39,11 @@
   "bugs": {
     "url": "https://github.com/toris-dev/asyncraft/issues"
   },
-  "homepage": "https://github.com/toris-dev/asyncraft#readme",
+  "homepage": "https://github.com/toris-dev/asyncraft",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/toris-dev/asyncraft"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -49,7 +62,19 @@
   },
   "files": [
     "dist",
-    "llms.txt"
+    "llms.txt",
+    "README.md",
+    "LICENSE",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
+    "SECURITY.md",
+    "CHANGELOG.md",
+    "ROADMAP.md",
+    "SUPPORT.md",
+    "MAINTAINERS.md",
+    "docs/faq.md",
+    "examples/README.md",
+    "RELEASING.md"
   ],
   "sideEffects": false,
   "engines": {
@@ -58,6 +83,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "ci": "npm run lint && npm run typecheck && npm run coverage && npm run build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -65,6 +91,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "coverage": "npm run test:coverage",
     "test:coverage": "vitest run --coverage",
     "tdd": "vitest --coverage",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run test:coverage && npm run build"
