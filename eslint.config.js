@@ -3,7 +3,15 @@ import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['**/dist', '**/coverage', '**/node_modules', '**/.claude'] },
+  {
+    ignores: [
+      '**/dist',
+      '**/coverage',
+      '**/node_modules',
+      '**/.claude',
+      'scripts/*.mjs',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
@@ -37,6 +45,10 @@ export default tseslint.config(
   },
   {
     files: ['**/*.js'],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    files: ['scripts/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
   },
   prettier,
