@@ -1,0 +1,9 @@
+# Global maintainers
+* @toris-dev
+
+# Docs and governance files
+/.github/      @toris-dev
+/CHANGELOG.md @toris-dev
+/MAINTAINERS.md @toris-dev
+/SUPPORT.md @toris-dev
+/docs/        @toris-dev

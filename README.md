@@ -3,9 +3,12 @@
 [![npm version](https://img.shields.io/npm/v/asyncraft?logo=npm)](https://www.npmjs.com/package/asyncraft)
 [![CI](https://github.com/toris-dev/asyncraft/actions/workflows/ci.yml/badge.svg)](https://github.com/toris-dev/asyncraft/actions/workflows/ci.yml)
 [![npm downloads](https://img.shields.io/npm/dm/asyncraft)](https://www.npmjs.com/package/asyncraft)
+[![Node.js](https://img.shields.io/node/v/asyncraft)](https://nodejs.org)
 [![bundle size](https://img.shields.io/bundlephobia/minzip/asyncraft)](https://bundlephobia.com/package/asyncraft)
 [![types](https://img.shields.io/npm/types/asyncraft)](https://www.npmjs.com/package/asyncraft)
 [![license](https://img.shields.io/npm/l/asyncraft)](./LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/toris-dev/asyncraft?style=social)](https://github.com/toris-dev/asyncraft/stargazers)
+[![issues](https://img.shields.io/github/issues/toris-dev/asyncraft)](https://github.com/toris-dev/asyncraft/issues)
 
 > Zero-dependency async control-flow utilities: retry, timeout, circuit breaker, concurrency limit, async map, single-flight memoize, debounce, deferred, and AbortSignal helpers — fully typed, `AbortSignal`-aware.
 
@@ -37,6 +40,9 @@ Instead of installing `p-retry` + `p-timeout` + `p-limit` + `p-map` + `p-memoize
 
 ```sh
 npm install asyncraft
+yarn add asyncraft
+pnpm add asyncraft
+bun add asyncraft
 ```
 
 ## Usage
@@ -216,6 +222,56 @@ const results = await asyncMap(
 );
 ```
 
+## Real-world examples
+
+### 1) Cancellable fanout calls with retries
+
+```ts
+import { asyncMap, retry, withTimeout } from 'asyncraft';
+
+const pages = await asyncMap(
+  Array.from({ length: 30 }, (_, index) => `https://api.example.com/item/${index}`),
+  (url) =>
+    retry(
+      () => withTimeout((signal) => fetch(url, { signal }).then((res) => res.json()), 4000),
+      { retries: 3, minDelay: 150 },
+    ),
+  { concurrency: 8, settled: true },
+);
+```
+
+### 2) Burst-safe upload queue
+
+```ts
+import { createLimit, sleep } from 'asyncraft';
+
+const limit = createLimit(4);
+const files = [...Array(50).keys()];
+
+await Promise.all(
+  files.map((id) =>
+    limit(async () => {
+      await upload(`/tmp/${id}.bin`);
+      await sleep(10);
+    }),
+  ),
+);
+```
+
+### 3) Fast timeout guard for long jobs
+
+```ts
+import { withTimeout, TimeoutError } from 'asyncraft';
+
+try {
+  await withTimeout(runLongTask(), 10_000);
+} catch (error) {
+  if (error instanceof TimeoutError) {
+    console.error('task timed out');
+  }
+}
+```
+
 ## API summary
 
 | Export                      | Purpose                                          |
@@ -234,6 +290,22 @@ const results = await asyncMap(
 | `TimeoutError`              | Thrown by `withTimeout`                          |
 | `RetryError`                | Thrown by `retry` when attempts are exhausted    |
 | `CircuitOpenError`          | Thrown by an open `circuitBreaker`               |
+
+## Development
+
+```sh
+npm install
+npm run tdd           # TDD loop: vitest watch mode + live coverage
+npm run test:coverage # same, plus the coverage gate CI enforces
+npm run lint          # eslint (type-checked)
+npm run typecheck     # tsc --noEmit
+npm run build         # tsup → dist/ (ESM + CJS + d.ts)
+```
+
+See [TESTING.md](./TESTING.md) for the TDD workflow and the test-harness
+layers (unit / stability / property-based / type tests).
+
+`npm run ci` runs lint, typecheck, coverage, and build in one command.
 
 ## For AI coding agents
 
@@ -271,21 +343,45 @@ breaks any of them fails CI and cannot be published:
 All public APIs carry full TSDoc (`@param`, `@throws`, `@remarks`,
 `@example`), so the same documentation appears in your editor's IntelliSense.
 
-## Development
+## Contributing
+
+1. Fork this repository
+2. Create a feature branch (`feat/your-topic`)
+3. Run checks before PR:
 
 ```sh
-npm install
-npm run tdd           # TDD loop: vitest watch mode + live coverage
-npm test              # unit + property + type tests
-npm run test:coverage # same, plus the coverage gate CI enforces
-npm run lint          # eslint (type-checked)
-npm run typecheck     # tsc --noEmit
-npm run build         # tsup → dist/ (ESM + CJS + d.ts)
+npm run lint
+npm run typecheck
+npm run test
 ```
 
-See [TESTING.md](./TESTING.md) for the TDD workflow and the test-harness
-layers (unit / stability / property-based / type tests).
+PRs with behavior changes should also include focused tests.
+
+## Discussions and support channels
+
+- Ask questions and architectural questions in GitHub Discussions:
+  - `https://github.com/toris-dev/asyncraft/discussions`
+- Open bug reports with the bug issue template:
+  - `https://github.com/toris-dev/asyncraft/issues/new?template=bug_report.md`
+- Open feature proposals in the issue template:
+  - `https://github.com/toris-dev/asyncraft/issues/new?template=feature_request.md`
+
+## Community and governance
+
+- [Contributing guide](./CONTRIBUTING.md)
+- [Code of Conduct](./CODE_OF_CONDUCT.md)
+- [Support policies](./SUPPORT.md)
+- [Maintainers](./MAINTAINERS.md)
+- [Roadmap](./ROADMAP.md)
+- [Changelog](./CHANGELOG.md)
+- [FAQ](./docs/faq.md)
+- [Examples](./examples/README.md)
+- [Release process](./RELEASING.md)
+
+## Security
+
+If you think you found a security issue, follow [`SECURITY.md`](./SECURITY.md).
 
 ## License
 
-MIT
+MIT license. See [LICENSE](./LICENSE).
