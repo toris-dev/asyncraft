@@ -1,38 +1,36 @@
 # Security Policy
 
-If you discover a security issue in asyncraft, please report it privately.
+If you discover a security issue in asyncraft, please report it privately and do not file it publicly.
 
 ## Reporting a vulnerability
 
 - Open a [GitHub Security Advisory](https://github.com/torisKR/asyncraft/security/advisories/new) if you have a GitHub account.
 - If you cannot use advisories, email `ironjustlikethat@gmail.com`.
 
-When reporting, include:
+Please include:
 
 - Affected version(s)
 - Affected environment (`node`/runtime version, OS, package manager)
-- Reproduction steps and a minimal proof-of-concept
-- Impact assessment and severity estimate
-- Potential mitigation ideas if you have any
+- Steps to reproduce
+- Minimal proof of concept
+- Impact and severity estimate
 
-## Supported versions
+## Supported versions for security fixes
 
-Only actively maintained releases receive security fixes.
+We only provide security fixes for versions that are in the active maintenance line.
 
-- `0.2.x` (current): actively maintained
-- Older minor or patch versions: supported only if directly maintained on request through a maintainer-led backport
+- **Current line:** `0.2.x`
+- **Policy:** security fixes are published on the latest patch version of the active line.
+- Versions outside the active line are not guaranteed fixes unless a maintainer decides to provide a backport.
 
-We plan to publish security fixes for each security update in the smallest supported patch release.
+## Response and handling timeline
 
-## Response process
+- Acknowledgement: within **5 business days**.
+- Initial triage and severity assessment: within **10 business days**.
+- Fix window: prioritized by severity; we release the smallest stable patch for the active line as soon as validation is complete.
 
-- Acknowledge report within 5 business days
-- Coordinate a fix plan with the reporter (usually 1 response cycle)
-- Publish a patch as soon as quality/validation permits, prioritized by severity
-- Publish coordinated advisory and release after validation
+When a report is accepted, we may ask you to keep details private until the release and advisory are ready.
 
 ## Safe disclosure
 
 Please do not post potential vulnerabilities on public issue trackers before a fix is released.
-
-For unannounced vulnerabilities, we may request you to refrain from public disclosure until patch release.
